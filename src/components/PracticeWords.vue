@@ -347,6 +347,198 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 
+// 音频工具类
+class AudioHelper {
+  constructor() {
+    this.isInitialized = false
+    this.audioContext = null
+    this.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    this.isWeChat = /MicroMessenger/i.test(navigator.userAgent)
+    this.isSpeaking = false
+  }
+
+  async init() {
+    if (this.isInitialized) return true
+
+    try {
+      if (!('speechSynthesis' in window)) {
+        console.warn('浏览器不支持语音合成')
+        return false
+      }
+
+      if (this.isMobile) {
+        await this.initMobileAudio()
+      }
+
+      await this.waitForVoices()
+      this.isInitialized = true
+      return true
+    } catch (error) {
+      console.error('音频初始化失败:', error)
+      return false
+    }
+  }
+
+  async initMobileAudio() {
+    if (this.isWeChat) {
+      await this.activateWeChatAudio()
+    }
+
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext
+      if (AudioContext) {
+        this.audioContext = new AudioContext()
+        if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume()
+        }
+      }
+    } catch (error) {
+      console.warn('音频上下文创建失败:', error)
+    }
+  }
+
+  async activateWeChatAudio() {
+    return new Promise((resolve) => {
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAAAQAEAAEAfAAAQAQABAAgAZGF0YQAAAAA=')
+        audio.volume = 0
+        
+        const playPromise = audio.play()
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              audio.pause()
+              resolve()
+            })
+            .catch(() => resolve())
+        } else {
+          setTimeout(() => {
+            audio.pause()
+            resolve()
+          }, 100)
+        }
+      } catch (error) {
+        console.warn('微信音频激活失败:', error)
+        resolve()
+      }
+    })
+  }
+
+  async waitForVoices() {
+    return new Promise((resolve) => {
+      const checkVoices = () => {
+        if (window.speechSynthesis.getVoices().length > 0) {
+          resolve()
+        } else {
+          setTimeout(checkVoices, 100)
+        }
+      }
+
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = checkVoices
+      }
+      checkVoices()
+    })
+  }
+
+  async speak(text, options = {}) {
+    if (!this.isInitialized) {
+      await this.init()
+    }
+
+    if (!('speechSynthesis' in window)) {
+      throw new Error('浏览器不支持语音合成')
+    }
+
+    this.stop()
+
+    return new Promise((resolve, reject) => {
+      try {
+        const utterance = new SpeechSynthesisUtterance(text)
+        
+        utterance.lang = options.lang || 'en-US'
+        utterance.rate = options.rate || 0.8
+        utterance.pitch = options.pitch || 1.0
+        utterance.volume = options.volume || 1.0
+
+        if (this.isMobile) {
+          utterance.rate = Math.max(0.6, utterance.rate - 0.1)
+        }
+
+        utterance.onend = () => {
+          this.isSpeaking = false
+          resolve()
+        }
+
+        utterance.onerror = (event) => {
+          this.isSpeaking = false
+          reject(new Error(`语音合成错误: ${event.error}`))
+        }
+
+        utterance.onstart = () => {
+          this.isSpeaking = true
+        }
+
+        if (this.isMobile) {
+          setTimeout(() => {
+            window.speechSynthesis.speak(utterance)
+          }, 100)
+        } else {
+          window.speechSynthesis.speak(utterance)
+        }
+
+      } catch (error) {
+        this.isSpeaking = false
+        reject(error)
+      }
+    })
+  }
+
+  stop() {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      this.isSpeaking = false
+    }
+  }
+
+  getIsSpeaking() {
+    return this.isSpeaking
+  }
+
+  async handleUserInteraction() {
+    if (!this.isMobile) return true
+
+    return new Promise((resolve) => {
+      const activateAudio = async () => {
+        try {
+          if (this.audioContext && this.audioContext.state === 'suspended') {
+            await this.audioContext.resume()
+          }
+          await this.activateWeChatAudio()
+          document.removeEventListener('touchstart', activateAudio)
+          document.removeEventListener('click', activateAudio)
+          resolve(true)
+        } catch (error) {
+          console.warn('用户交互激活失败:', error)
+          resolve(true)
+        }
+      }
+
+      document.addEventListener('touchstart', activateAudio, { once: true })
+      document.addEventListener('click', activateAudio, { once: true })
+      
+      setTimeout(() => {
+        document.removeEventListener('touchstart', activateAudio)
+        document.removeEventListener('click', activateAudio)
+        resolve(true)
+      }, 2000)
+    })
+  }
+}
+
+// 创建音频助手实例
+const audioHelper = new AudioHelper()
+
 export default {
   name: 'PracticeWords',
   setup() {
@@ -357,13 +549,19 @@ export default {
     const practiceWords = ref([])
     const loading = ref(false)
     
+    // 发音状态管理
+    const isPronouncing = ref(false)
+    
     // 确保页面加载时重置到初始状态
-    onMounted(() => {
+    onMounted(async () => {
       currentStep.value = 'mode-selection'
       currentMode.value = ''
       currentIndex.value = 0
       practiceWords.value = []
       loading.value = false
+      
+      // 初始化音频助手
+      await audioHelper.init()
     })
     
     // 闪卡模式相关
@@ -637,16 +835,64 @@ export default {
       }
     }
     
-    // 播放发音
-    const playSound = (word) => {
+    // 播放发音 - 优化移动端兼容性
+    const playSound = async (word) => {
       try {
-        const speech = new SpeechSynthesisUtterance(word)
-        speech.lang = 'en-US'
-        window.speechSynthesis.speak(speech)
+        if (isPronouncing.value) {
+          audioHelper.stop()
+          isPronouncing.value = false
+          return
+        }
+
+        // 检查是否需要用户交互激活
+        if (audioHelper.isMobile) {
+          await audioHelper.handleUserInteraction()
+        }
+
+        // 开始发音
+        isPronouncing.value = true
+        await audioHelper.speak(word)
+        
       } catch (error) {
-        console.error('播放发音失败:', error)
-        ElMessage.warning('无法播放发音，请检查浏览器权限')
+        console.error('发音失败:', error)
+        ElMessage.warning('发音播放失败，请重试')
+      } finally {
+        // 重置状态
+        setTimeout(() => {
+          isPronouncing.value = false
+        }, 1000)
       }
+    }
+
+    // 激活音频上下文（解决微信浏览器音频限制）
+    const activateAudioContext = () => {
+      return new Promise((resolve) => {
+        try {
+          // 创建音频上下文
+          const AudioContext = window.AudioContext || window.webkitAudioContext
+          if (AudioContext) {
+            const audioContext = new AudioContext()
+            
+            // 创建静音音频
+            const silentAudio = audioContext.createBuffer(1, 1, 22050)
+            const source = audioContext.createBufferSource()
+            source.buffer = silentAudio
+            source.connect(audioContext.destination)
+            source.start(0)
+            
+            // 立即停止
+            setTimeout(() => {
+              audioContext.close()
+              resolve()
+            }, 100)
+          } else {
+            resolve()
+          }
+        } catch (error) {
+          console.warn('激活音频上下文失败:', error)
+          resolve()
+        }
+      })
     }
     
     // 闪卡模式：翻转卡片
@@ -826,6 +1072,7 @@ export default {
       currentWord,
       progressPercentage,
       isCorrect,
+      isPronouncing,
       selectMode,
       startPractice,
       playSound,
@@ -1825,11 +2072,65 @@ h2 {
   gap: 10px;
   font-weight: 500;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  outline: none;
 }
 
 .play-audio-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.play-audio-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.play-audio-btn.mobile-optimized {
+  /* 移动端优化 */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  outline: none;
+}
+
+.play-audio-btn.mobile-optimized:hover {
+  transform: none; /* 移动端不使用hover效果 */
+}
+
+.play-audio-btn.mobile-optimized:active {
+  transform: scale(0.95);
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.play-audio-btn.speaking {
+  animation: speaking 1.5s ease-in-out infinite;
+}
+
+.play-audio-btn.speaking i {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes speaking {
+  0%, 100% { 
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  50% { 
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .listen-hint {

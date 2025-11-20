@@ -1576,7 +1576,7 @@ export default {
   backdrop-filter: blur(20px);
   border-top: 1px solid #e4e7ed;
   display: flex;
-  padding: 8px 0 12px 0;
+  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
   z-index: 1000;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -1586,12 +1586,14 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 4px;
+  padding: 4px 2px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
   position: relative;
+  min-height: 44px;
+  justify-content: center;
 }
 
 .mobile-nav-item.active {
@@ -1612,12 +1614,12 @@ export default {
 }
 
 .nav-icon-wrapper {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
   transition: all 0.3s;
 }
 
@@ -1638,13 +1640,139 @@ export default {
 }
 
 .mobile-content {
-  padding: 20px 0;
-  min-height: calc(100vh - 120px);
+  padding: 16px 12px 100px;
+  min-height: calc(100vh - 60px);
+  background: #f8fafc;
+}
+
+/* 移动端专用优化 */
+@media (max-width: 768px) {
+  /* 确保内容不被底部导航遮挡 */
+  .mobile-content {
+    padding-bottom: max(100px, calc(60px + env(safe-area-inset-bottom)));
+  }
+  
+  /* 优化滚动体验 */
+  .mobile-content {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* 触摸优化 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* 允许文本选择 */
+  .word-meaning,
+  .word-example,
+  .word-text {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* 优化按钮触摸区域 */
+  .mobile-nav-item {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* 优化输入框在移动端的显示 */
+  :deep(.el-input__inner) {
+    font-size: 16px; /* 防止iOS缩放 */
+  }
+  
+  /* 优化对话框在移动端的显示 */
+  :deep(.el-dialog) {
+    width: 95% !important;
+    margin: 0 auto !important;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  /* 优化抽屉在移动端的显示 */
+  :deep(.el-drawer) {
+    border-radius: 16px 16px 0 0;
+  }
+  
+  /* 优化按钮在移动端的尺寸 */
+  :deep(.el-button--small) {
+    min-height: 32px;
+    padding: 6px 12px;
+  }
+  
+  /* 优化统计数字显示 */
+  .stat-number {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  
+  .stat-label {
+    font-size: 11px;
+  }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 375px) {
+  .mobile-content {
+    padding: 12px 8px max(100px, calc(60px + env(safe-area-inset-bottom)));
+  }
+  
+  .mobile-nav-item {
+    font-size: 9px;
+  }
+  
+  .nav-icon-wrapper {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .stat-number {
+    font-size: 18px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
+  }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mobile-nav {
+    padding: 2px 0 max(2px, env(safe-area-inset-bottom));
+  }
+  
+  .mobile-nav-item {
+    padding: 2px 1px;
+    min-height: 40px;
+  }
+  
+  .nav-icon-wrapper {
+    width: 18px;
+    height: 18px;
+    margin-bottom: 1px;
+  }
+  
+  .mobile-content {
+    padding-bottom: max(80px, calc(50px + env(safe-area-inset-bottom)));
+  }
+}
+
+/* 移动端数据管理菜单 */
+.mobile-data-menu {
+  padding: 16px;
+}
+
+.mobile-more-menu {
+  padding: 16px;
 }
 
 /* 移动端主界面样式 */
 .mobile-main {
-  padding: 20px 15px;
+  padding: 16px 12px 80px;
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   position: relative;
@@ -1675,11 +1803,11 @@ export default {
 .mobile-stats {
   display: flex;
   justify-content: space-around;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 20px 15px;
+  border-radius: 16px;
+  padding: 16px 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }

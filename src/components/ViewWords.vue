@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="header-content">
         <h1 class="page-title">单词记录</h1>
-        <p class="page-subtitle">查看和管理你的英语单词</p>
+        <p class="page-subtitle">管理和查看学习进度</p>
       </div>
     </div>
 
@@ -21,13 +21,13 @@
             value-format="YYYY-MM-DD"
             @change="loadWordsForDate"
             clearable
-            size="default"
+            size="small"
             class="custom-date-picker"
           />
           <el-button 
             v-if="selectedDate"
             @click="clearDateFilter"
-            size="default"
+            size="small"
             class="clear-btn"
             icon="RefreshLeft"
           >
@@ -39,7 +39,7 @@
       <div class="stats-section">
         <div class="stat-card">
           <div class="stat-number">{{ filteredWords.length }}</div>
-          <div class="stat-label">当前显示</div>
+          <div class="stat-label">显示</div>
         </div>
         <div class="stat-card">
           <div class="stat-number">{{ allWords.length }}</div>
@@ -82,8 +82,8 @@
         <div 
           v-for="(word, index) in filteredWords" 
           :key="word.id" 
-          class="word-card"
-          :style="{ animationDelay: `${index * 0.1}s` }"
+          class="word-card mobile-optimized"
+          :style="{ animationDelay: `${index * 0.05}s` }"
         >
           <div class="word-card-header">
             <div class="word-main">
@@ -774,6 +774,88 @@ export default {
   background: #2563eb;
 }
 
+/* 移动端优化样式 */
+.mobile-optimized {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.mobile-optimized:active {
+  transform: scale(0.98);
+}
+
+/* 移动端触摸优化 */
+@media (hover: none) and (pointer: coarse) {
+  .word-card:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+  
+  .word-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .action-btn:hover {
+    transform: none;
+  }
+  
+  .action-btn:active {
+    transform: scale(0.9);
+  }
+}
+
+/* 移动端安全区域适配 */
+@supports (padding: max(0px)) {
+  .view-words-container {
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-bottom: max(80px, env(safe-area-inset-bottom));
+  }
+}
+
+/* 移动端滚动优化 */
+.words-list {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* 移动端输入框优化 */
+:deep(.el-date-editor.el-input) {
+  width: 100%;
+}
+
+:deep(.el-date-editor .el-input__inner) {
+  font-size: 14px;
+  padding: 8px 12px;
+}
+
+/* 移动端按钮优化 */
+:deep(.el-button--small) {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+:deep(.el-button.is-circle) {
+  padding: 6px;
+}
+
+/* 移动端对话框优化 */
+@media (max-width: 480px) {
+  :deep(.el-dialog) {
+    width: 90% !important;
+    margin: 0 auto !important;
+  }
+  
+  :deep(.el-dialog__body) {
+    padding: 16px !important;
+  }
+  
+  :deep(.el-dialog__footer) {
+    padding: 0 16px 16px !important;
+  }
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .words-grid {
@@ -784,20 +866,50 @@ export default {
 
 @media (max-width: 768px) {
   .view-words-container {
-    padding: 0 16px 30px;
+    padding: 0 12px 80px;
+    max-width: 100%;
+  }
+  
+  .page-header {
+    padding: 20px 0 16px;
   }
   
   .page-title {
-    font-size: 1.75em;
+    font-size: 1.5em;
+    margin-bottom: 4px;
+  }
+  
+  .page-subtitle {
+    font-size: 0.875em;
   }
   
   .top-bar {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    margin-bottom: 20px;
   }
   
   .date-section {
     min-width: 100%;
+  }
+  
+  .section-title {
+    font-size: 0.875em;
+    margin-bottom: 8px;
+    color: #64748b;
+  }
+  
+  .date-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  .custom-date-picker {
+    flex: 1;
   }
   
   .stats-section {
@@ -805,48 +917,104 @@ export default {
     justify-content: space-between;
   }
   
+  .stat-card {
+    padding: 12px 16px;
+    min-width: 80px;
+  }
+  
+  .stat-number {
+    font-size: 1.25em;
+  }
+  
+  .stat-label {
+    font-size: 0.75em;
+  }
+  
   .words-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
   }
   
   .word-card {
-    padding: 20px;
+    padding: 16px;
+    border-radius: 12px;
   }
   
   .word-text {
-    font-size: 1.375em;
+    font-size: 1.25em;
+  }
+  
+  .word-title {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  
+  .word-actions {
+    flex-shrink: 0;
+  }
+  
+  .action-btn {
+    width: 32px;
+    height: 32px;
   }
 }
 
 @media (max-width: 480px) {
   .view-words-container {
-    padding: 0 12px 24px;
+    padding: 0 8px 80px;
   }
   
   .page-header {
-    padding: 32px 0 24px;
+    padding: 16px 0 12px;
   }
   
   .page-title {
-    font-size: 1.5em;
+    font-size: 1.375em;
   }
   
   .page-subtitle {
-    font-size: 0.875em;
+    font-size: 0.813em;
+  }
+  
+  .top-bar {
+    padding: 12px;
+    gap: 10px;
   }
   
   .date-section,
   .stat-card {
-    padding: 16px;
+    padding: 10px 12px;
   }
   
   .word-card {
-    padding: 16px;
+    padding: 14px;
+    border-radius: 10px;
   }
   
   .word-text {
-    font-size: 1.25em;
+    font-size: 1.125em;
+  }
+  
+  .word-pronunciation {
+    font-size: 0.813em;
+  }
+  
+  .word-meaning {
+    font-size: 0.938em;
+  }
+  
+  .word-example {
+    font-size: 0.875em;
+  }
+  
+  .section-label {
+    font-size: 0.75em;
+  }
+  
+  .word-date-info {
+    font-size: 0.75em;
   }
   
   .word-title {
@@ -860,8 +1028,22 @@ export default {
   }
   
   .stats-section {
-    flex-direction: column;
-    gap: 12px;
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  .stat-card {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 8px;
+  }
+  
+  .stat-number {
+    font-size: 1.125em;
+  }
+  
+  .stat-label {
+    font-size: 0.688em;
   }
 }
 </style>

@@ -123,5 +123,7 @@ export default defineConfig({
     },
     // 设置 chunk 大小警告阈值
     chunkSizeWarningLimit: 1000,
+    // GitHub Pages 优化：确保生成 .nojekyll 文件
+    emptyOutDir: true
   }
 })

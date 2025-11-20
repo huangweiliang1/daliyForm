@@ -166,45 +166,48 @@
       <!-- 数据管理功能已移至专门的"数据管理"标签页 -->
 
       <!-- 快速添加区域 -->
-      <el-card class="quick-add-card gradient-card">
+      <el-card class="quick-add-card gradient-card mobile-quick-add-card">
         <template #header>
-          <div class="card-header">
-            <div class="header-icon">
+          <div class="card-header mobile-card-header">
+            <div class="header-icon mobile-header-icon">
               <i class="fas fa-bolt"></i>
             </div>
-            <h2 class="gradient-text">快速添加</h2>
+            <h2 class="gradient-text mobile-gradient-text">快速添加</h2>
           </div>
         </template>
         
-        <div class="quick-add-content">
+        <div class="quick-add-content mobile-quick-add-content">
           <el-input
             v-model="quickAddText"
             placeholder="格式：单词-释义，例如：apple-苹果"
-            class="form-input quick-add-input"
+            class="form-input quick-add-input mobile-quick-add-input"
             clearable
             @keyup.enter="quickAdd"
             show-word-limit
             maxlength="100"
+            size="large"
           ></el-input>
           <el-button
             @click="quickAdd"
             :loading="submitting"
-            class="quick-add-btn"
+            class="quick-add-btn mobile-quick-add-btn"
+            size="large"
           >
             <i class="fas fa-plus"></i>
             快速添加
           </el-button>
         </div>
         
-        <div v-if="recentAddedWords.length > 0" class="recent-words">
-          <h4>最近添加：</h4>
-          <div class="recent-words-list">
+        <div v-if="recentAddedWords.length > 0" class="recent-words mobile-recent">
+          <h4 class="mobile-title">最近添加：</h4>
+          <div class="recent-words-list mobile-list">
             <el-tag
               v-for="(word, index) in recentAddedWords"
               :key="index"
               :closable="true"
               :effect="'plain'"
-              class="recent-word-tag"
+              class="recent-word-tag mobile-tag"
+              size="small"
               @close="removeRecentWord(index)"
             >
               {{ word }}
@@ -471,11 +474,106 @@ export default {
       // 这里可以添加响应式布局调整逻辑
     }
 
-    // 组件挂载时
-    onMounted(() => {
-      window.addEventListener('resize', handleResize)
-      window.addEventListener('edit-word', handleEditWord)
-    })
+    // 监听键盘弹出事件
+const handleKeyboardToggle = () => {
+  if (typeof window !== 'undefined') {
+    const initialViewportHeight = window.visualViewport?.height || window.innerHeight;
+    
+    const handleViewportChange = () => {
+      const currentHeight = window.visualViewport?.height || window.innerHeight;
+      const heightDiff = initialViewportHeight - currentHeight;
+      
+      // 如果高度差超过150px，认为键盘弹出了
+      if (heightDiff > 150) {
+        document.body.classList.add('keyboard-open');
+        // 滚动到当前聚焦的输入框
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          setTimeout(() => {
+            activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+        }
+      } else {
+        document.body.classList.remove('keyboard-open');
+      }
+    };
+    
+    // 监听视觉视口变化
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+    } else {
+      // 降级方案：监听窗口大小变化和焦点事件
+      window.addEventListener('resize', handleViewportChange);
+      document.addEventListener('focusin', handleViewportChange);
+      document.addEventListener('focusout', handleViewportChange);
+    }
+    
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+      } else {
+        window.removeEventListener('resize', handleViewportChange);
+        document.removeEventListener('focusin', handleViewportChange);
+        document.removeEventListener('focusout', handleViewportChange);
+      }
+    };
+  }
+};
+
+// 移动端触摸优化
+const setupMobileOptimizations = () => {
+  if (typeof window !== 'undefined' && 'ontouchstart' in window) {
+    // 防止双击缩放
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+    
+    // 优化输入框聚焦
+    const inputs = document.querySelectorAll('input, textarea');
+    inputs.forEach(input => {
+      input.addEventListener('focus', () => {
+        // 延迟滚动，确保键盘完全弹出
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      });
+    });
+    
+    // 添加触摸反馈
+    const touchElements = document.querySelectorAll('.el-button, .recent-word-item');
+    touchElements.forEach(element => {
+      element.addEventListener('touchstart', () => {
+        element.style.transform = 'scale(0.98)';
+      });
+      
+      element.addEventListener('touchend', () => {
+        element.style.transform = 'scale(1)';
+      });
+    });
+  }
+};
+
+// 组件挂载时
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  window.addEventListener('edit-word', handleEditWord)
+  
+  // 设置移动端优化
+  const cleanupKeyboard = handleKeyboardToggle();
+  setupMobileOptimizations();
+  
+  // 清理函数
+  onUnmounted(() => {
+    if (cleanupKeyboard) {
+      cleanupKeyboard();
+    }
+  });
+})
 
     // 组件卸载时
     onUnmounted(() => {
@@ -849,6 +947,8 @@ export default {
   transition: all var(--transition-normal);
   box-shadow: var(--shadow-sm);
   padding: 0.75rem 1rem;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 :deep(.modern-input .el-input__wrapper:hover),
@@ -856,6 +956,7 @@ export default {
 :deep(.modern-datepicker .el-input__wrapper:hover) {
   border-color: rgba(102, 126, 234, 0.3);
   box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 :deep(.modern-input .el-input__wrapper.is-focus),
@@ -863,6 +964,18 @@ export default {
 :deep(.modern-datepicker .el-input__wrapper.is-focus) {
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 移动端触摸反馈 */
+@media (hover: none) and (pointer: coarse) {
+  :deep(.modern-input .el-input__wrapper:active),
+  :deep(.modern-select .el-select__wrapper:active),
+  :deep(.modern-datepicker .el-input__wrapper:active) {
+    transform: scale(0.98);
+    background-color: var(--bg-primary);
+    border-color: #667eea;
+  }
 }
 
 :deep(.modern-textarea .el-textarea__inner) {
@@ -874,16 +987,29 @@ export default {
   padding: 0.75rem 1rem;
   resize: vertical;
   min-height: 80px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 :deep(.modern-textarea .el-textarea__inner:hover) {
   border-color: rgba(102, 126, 234, 0.3);
   box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 :deep(.modern-textarea .el-textarea__inner:focus) {
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 移动端文本域触摸反馈 */
+@media (hover: none) and (pointer: coarse) {
+  :deep(.modern-textarea .el-textarea__inner:active) {
+    transform: scale(0.98);
+    background-color: var(--bg-primary);
+    border-color: #667eea;
+  }
 }
 
 /* 选项样式 */
@@ -1178,6 +1304,132 @@ export default {
   }
 }
 
+/* 移动端专用动画效果 */
+@keyframes inputFocus {
+  0% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+}
+
+@keyframes buttonPress {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+/* 移动端动画应用 */
+@media (max-width: 768px) {
+  .form-section {
+    animation: fadeInUp 0.5s ease-out;
+    animation-fill-mode: both;
+  }
+
+  .form-section:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+
+  .form-section:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .add-word-card {
+    animation: fadeInUp 0.5s ease-out 0.3s both;
+  }
+
+  .quick-add-card {
+    animation: fadeInUp 0.5s ease-out 0.4s both;
+  }
+
+  .recent-word-tag {
+    animation: slideInRight 0.3s ease-out;
+    animation-fill-mode: both;
+  }
+
+  .recent-word-tag:nth-child(1) { animation-delay: 0.05s; }
+  .recent-word-tag:nth-child(2) { animation-delay: 0.1s; }
+  .recent-word-tag:nth-child(3) { animation-delay: 0.15s; }
+  .recent-word-tag:nth-child(4) { animation-delay: 0.2s; }
+  .recent-word-tag:nth-child(5) { animation-delay: 0.25s; }
+
+  /* 按钮点击动画 */
+  .form-actions .el-button {
+    transition: all 0.3s ease;
+  }
+
+  .form-actions .el-button:active {
+    animation: buttonPress 0.2s ease;
+  }
+
+  /* 输入框错误抖动 */
+  .el-form-item.is-error {
+    .el-input__wrapper,
+    .el-textarea__inner {
+      animation: shake 0.5s ease;
+    }
+  }
+
+  /* 成功提示动画 */
+  .el-message.el-message--success {
+    animation: fadeInUp 0.3s ease;
+  }
+
+  /* 加载状态动画 */
+  .el-button.is-loading {
+    .el-icon {
+      animation: pulse 1.5s ease infinite;
+    }
+  }
+
+  /* 触摸反馈动画 */
+  .recent-word-tag {
+    transition: all 0.3s ease;
+  }
+
+  .recent-word-tag:active {
+    animation: pulse 0.2s ease;
+  }
+
+  /* 表单验证反馈 */
+  .el-form-item.is-success {
+    .el-input__wrapper,
+    .el-textarea__inner {
+      border-color: #10b981;
+      background-color: #f0fdf4;
+    }
+  }
+
+  /* 选择器展开动画 */
+  .el-select-dropdown {
+    animation: fadeInUp 0.2s ease;
+  }
+
+  /* 日期选择器面板动画 */
+  .el-picker-panel {
+    animation: fadeInUp 0.3s ease;
+  }
+}
+
 .card-header {
   display: flex;
   align-items: center;
@@ -1464,116 +1716,453 @@ export default {
   }
 }
 
-/* 响应式设计 */
+/* 移动端专用样式 */
 @media (max-width: 768px) {
   .add-word-container {
-    padding: 10px;
-    gap: 1.5rem;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  
-  .container {
-    width: 100%;
+    padding: 12px;
     max-width: 100%;
   }
-  
-  .add-word-card .card-header h2,
-  .quick-add-card .card-header h2 {
-    font-size: 1.3rem;
-  }
-  
-  .header-icon {
-    width: 35px;
-    height: 35px;
-  }
-  
-  .header-icon i {
-    font-size: 1rem;
-  }
-  
-  .word-form {
-    padding: 15px;
-  }
-  
-  .form-section {
-    padding: 15px;
+
+  .add-word-header {
+    padding: 16px 0;
     margin-bottom: 20px;
-    gap: 10px;
   }
-  
-  .section-title {
-    font-size: 1rem;
-    margin-bottom: 10px;
+
+  .add-word-title {
+    font-size: 22px;
+    margin-bottom: 8px;
   }
-  
-  .form-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    justify-content: center;
-  }
-  
-  .action-btn {
-    width: 100%;
-  }
-  
-  .quick-add-content {
-    flex-direction: column;
-    gap: 10px;
-    padding: 15px;
-  }
-  
-  .quick-add-btn {
-    width: 100%;
-    white-space: normal;
-    font-size: 0.9rem;
-    padding: 10px 16px;
-  }
-  
-  .recent-words-list {
-    justify-content: center;
-    gap: 6px;
-  }
-  
-  /* 优化表单元素在移动端的显示 */
-  
-  .el-form-item {
-    margin-bottom: 15px;
-  }
-  
-  .el-input__inner,
-  .el-select__wrapper {
-    font-size: 14px;
+
+  .add-word-subtitle {
+    font-size: 13px;
     padding: 8px 12px;
+    border-radius: 8px;
   }
-  
-  .form-textarea {
-    min-height: 120px;
+
+  .word-form.mobile-optimized {
+    .el-form-item {
+      margin-bottom: 20px;
+    }
+
+    .el-form-item__label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      line-height: 1.5;
+      padding-bottom: 6px;
+    }
+
+    .el-input,
+    .el-select,
+    .el-textarea {
+      width: 100%;
+    }
+
+    .el-input__inner,
+    .el-textarea__inner {
+      font-size: 16px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 2px solid #e5e7eb;
+      transition: all 0.3s ease;
+      background-color: #f9fafb;
+    }
+
+    .el-input__inner:focus,
+    .el-textarea__inner:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background-color: #ffffff;
+    }
+
+    .el-select .el-input__inner {
+      height: 48px;
+      line-height: 48px;
+    }
+  }
+
+  .form-section {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid #f3f4f6;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+      color: #6366f1;
+      font-size: 14px;
+    }
+  }
+
+  .mobile-form-group {
+    .el-row {
+      margin: 0 -6px;
+    }
+
+    .el-col {
+      padding: 0 6px;
+    }
+  }
+
+  .form-actions.mobile-actions {
+    display: flex;
+    gap: 12px;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    margin-top: 20px;
+  }
+
+  .mobile-btn {
+    flex: 1;
+    height: 48px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  .primary-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+
+    &:hover {
+      background: linear-gradient(135deg, #5558e3 0%, #7c3aed 100%);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    }
+  }
+
+  .clear-btn {
+    background: #f3f4f6;
+    border: 2px solid #e5e7eb;
+    color: #6b7280;
+
+    &:hover {
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+  }
+
+  /* 快速添加区域移动端优化 */
+  .quick-add-section.mobile-quick-add {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 2px solid #ddd6fe;
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+  }
+
+  .quick-add-header {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .quick-add-desc {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .quick-add-content {
+    .mobile-textarea .el-textarea__inner {
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 16px;
+      background: #ffffff;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      min-height: 120px;
+    }
+  }
+
+  .quick-add-options {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 16px 0;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+  }
+
+  .mobile-checkbox {
     font-size: 14px;
-    padding: 10px 12px;
+    color: #4b5563;
   }
-  
-  .form-actions {
-    margin-top: 15px;
-    padding-top: 15px;
-  }
-  
-  .form-actions .el-button {
-    padding: 10px;
+
+  .quick-add-help {
+    color: #9ca3af;
     font-size: 14px;
+    cursor: help;
   }
-  
-  /* 优化背景装饰在移动端的显示 */
-  .bg-circle {
-    filter: blur(60px);
+
+  /* 最近添加区域移动端优化 */
+  .recent-words-section.mobile-recent {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border: 1px solid #f3f4f6;
   }
-  
-  .bg-circle-1,
-  .bg-circle-2 {
-    width: 300px;
-    height: 300px;
+
+  .recent-words-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f3f4f6;
+  }
+
+  .mobile-clear-btn {
+    font-size: 13px;
+    color: #ef4444;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+  }
+
+  .recent-words-list.mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .recent-word-item.mobile-item {
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 12px;
+    border: 2px solid #f3f4f6;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 60px;
+
+    &:hover {
+      background: #f3f4f6;
+      border-color: #e5e7eb;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    &:active {
+      transform: translateY(0) scale(0.98);
+    }
+  }
+
+  .recent-word-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .recent-word-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .recent-word-meaning {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .recent-word-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 12px;
+  }
+
+  .word-tag {
+    font-size: 11px;
+    padding: 4px 8px;
+    background: #e0e7ff;
+    color: #4338ca;
+    border-radius: 6px;
+    font-weight: 500;
+  }
+
+  .word-date {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+
+  .recent-word-arrow {
+    color: #d1d5db;
+    font-size: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .recent-word-item:hover .recent-word-arrow {
+    color: #6366f1;
+    transform: translateX(2px);
+  }
+
+  /* 触摸优化 */
+  .el-input__inner,
+  .el-textarea__inner,
+  .el-button {
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+  }
+
+  /* 安全区域适配 */
+  @supports (padding: max(0px)) {
+    .add-word-container {
+      padding-left: max(12px, env(safe-area-inset-left));
+      padding-right: max(12px, env(safe-area-inset-right));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .form-actions.mobile-actions {
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+  }
+
+  /* 横屏优化 */
+  @media (max-width: 768px) and (orientation: landscape) {
+    .add-word-container {
+      padding: 8px;
+    }
+
+    .form-section {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .quick-add-section.mobile-quick-add {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .recent-words-section.mobile-recent {
+      padding: 16px;
+    }
+
+    .mobile-textarea .el-textarea__inner {
+      min-height: 80px;
+    }
+  }
+
+  /* 小屏幕优化 */
+  @media (max-width: 480px) {
+    .add-word-container {
+      padding: 8px;
+    }
+
+    .add-word-title {
+      font-size: 20px;
+    }
+
+    .form-section {
+      padding: 16px;
+      border-radius: 12px;
+    }
+
+    .section-title {
+      font-size: 15px;
+    }
+
+    .mobile-form-group .el-col {
+      padding: 0 4px;
+    }
+
+    .form-actions.mobile-actions {
+      padding: 16px;
+      gap: 8px;
+    }
+
+    .mobile-btn {
+      height: 44px;
+      font-size: 15px;
+    }
+
+    .quick-add-section.mobile-quick-add {
+      padding: 20px;
+      border-radius: 16px;
+    }
+
+    .recent-word-item.mobile-item {
+      padding: 14px;
+      min-height: 56px;
+    }
+
+    .recent-word-text {
+      font-size: 15px;
+    }
+
+    .recent-word-meaning {
+      font-size: 12px;
+    }
+  }
+
+  /* 超小屏幕优化 */
+  @media (max-width: 375px) {
+    .add-word-title {
+      font-size: 18px;
+    }
+
+    .section-title {
+      font-size: 14px;
+    }
+
+    .mobile-btn {
+      height: 40px;
+      font-size: 14px;
+    }
+
+    .form-actions.mobile-actions {
+      padding: 12px;
+    }
+
+    .quick-add-section.mobile-quick-add {
+      padding: 16px;
+    }
+
+    .recent-word-item.mobile-item {
+      padding: 12px;
+      min-height: 52px;
+    }
   }
 }
 
@@ -1599,109 +2188,9 @@ export default {
   }
 }
 
-/* 超小屏幕适配（375px以下） */
-@media (max-width: 375px) {
-  .add-word-container {
-    padding: 5px;
-  }
-  
-  .gradient-text {
-  font-size: 1.2rem;
-  background: linear-gradient(90deg, #4361ee, #4cc9f0);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-  
-  .card-header {
-    gap: 8px;
-  }
-  
-  .header-icon {
-    width: 30px;
-    height: 30px;
-  }
-  
-  .add-word-card {
-    padding: 10px;
-    margin: 5px;
-    border-radius: 8px;
-  }
-  
-  .section-title {
-    font-size: 0.9rem;
-    padding-left: 8px;
-    margin-bottom: 10px;
-  }
-  
-  :deep(.el-form-item__label) {
-    width: 60px;
-  }
-  
-  .word-form .el-form-item__label {
-    font-size: 12px;
-    padding: 0 0 5px 0;
-    height: auto;
-    line-height: 1.4;
-  }
-  
-  .el-input__wrapper {
-    padding: 3px 8px;
-  }
-  
-  .el-input__inner {
-    font-size: 13px;
-  }
-  
-  .form-textarea {
-    min-height: 100px;
-    font-size: 13px;
-  }
-  
-  .form-actions .el-button {
-    padding: 8px;
-    font-size: 13px;
-  }
-  
-  /* 确保输入框在极小屏幕上不会溢出 */
-  .el-form-item {
-    margin-right: 0 !important;
-    margin-left: 0 !important;
-  }
-  
-  /* 优化标签在小屏幕的显示 */
-  .el-tag {
-    font-size: 11px;
-    padding: 2px 8px;
-    margin-right: 6px;
-    margin-bottom: 6px;
-  }
-}
 
-/* 极小屏适配 (320px以下) */
-@media (max-width: 320px) {
-  .gradient-text {
-    font-size: 1.1rem;
-  }
-  
-  :deep(.el-form .el-form-item__label) {
-    width: 60px;
-  }
-  
-  .el-form-item__label {
-    font-size: 11px;
-  }
-  
-  .form-actions .el-button {
-    padding: 7px 14px;
-    font-size: 0.85rem;
-  }
-  
-  .form-section {
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-  }
-}
+
+
 
 /* 表单验证错误样式优化 */
 :deep(.el-form-item.is-error .el-input__wrapper) {
@@ -1727,7 +2216,170 @@ export default {
   }
 }
 
+/* 滚动条样式优化 */
+.add-word-container {
+  /* Webkit浏览器滚动条 */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+    transition: background 0.3s ease;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* 移动端滚动优化 */
+  @media (max-width: 768px) {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    
+    /* 优化滚动性能 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    
+    /* 键盘弹出时的适配 */
+    .form-actions {
+      transition: all 0.3s ease;
+    }
+    
+    /* 输入框聚焦时的处理 */
+    .el-input.is-focus,
+    .el-textarea.is-focus {
+      /* 确保输入框在可视区域内 */
+      scroll-margin-top: 20px;
+      scroll-margin-bottom: 100px;
+    }
+    
+    /* 文本域聚焦时的特殊处理 */
+    .el-textarea.is-focus {
+      .el-textarea__inner {
+        min-height: 120px; /* 聚焦时增加高度 */
+      }
+    }
+  }
+}
+
+/* 移动端键盘适配 */
+@media (max-width: 768px) {
+  /* 当键盘弹出时调整布局 */
+  .keyboard-open {
+    .form-actions {
+      position: relative;
+      bottom: auto;
+      margin-bottom: 20px;
+    }
+    
+    .quick-add-card {
+      margin-bottom: 20px;
+    }
+  }
+  
+  /* 输入框类型优化 */
+  .el-input__inner[type="text"] {
+    /* 自动大写关闭 */
+    text-transform: none;
+    /* 自动更正关闭 */
+    autocorrect: off;
+    /* 自动完成关闭 */
+    autocomplete: off;
+    /* 拼写检查关闭 */
+    spellcheck: false;
+  }
+  
+  /* 文本域优化 */
+  .el-textarea__inner {
+    /* 自动大写关闭 */
+    text-transform: none;
+    /* 自动更正关闭 */
+    autocorrect: off;
+    /* 拼写检查关闭 */
+    spellcheck: false;
+  }
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 768px) {
+  /* 增大触摸区域 */
+  .el-form-item__label {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .el-input__inner,
+  .el-textarea__inner {
+    min-height: 44px;
+  }
+  
+  .el-select .el-input__inner {
+    min-height: 44px;
+  }
+  
+  .el-button {
+    min-height: 44px;
+  }
+  
+  /* 触摸反馈 */
+  .el-input__inner:active,
+  .el-textarea__inner:active,
+  .el-button:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+  
+  /* 防止双击缩放 */
+  .el-input__inner,
+  .el-textarea__inner,
+  .el-button,
+  .recent-word-tag {
+    touch-action: manipulation;
+  }
+  
+  /* 长按选择优化 */
+  .el-input__inner,
+  .el-textarea__inner {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* 防止页面滚动穿透 */
+  .el-select-dropdown,
+  .el-picker-panel {
+    position: fixed;
+    z-index: 9999;
+  }
+  
+  /* 模态框背景防止滚动 */
+  .el-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+  }
+}
+
 /* 按钮样式优化 */
+:deep(.el-button) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
 :deep(.el-button--primary) {
   background: linear-gradient(135deg, #4361ee, #4cc9f0);
   border: none;
@@ -1748,6 +2400,47 @@ export default {
 :deep(.el-button--default:hover) {
   border-color: #4361ee;
   color: #4361ee;
+  transform: translateY(-1px);
+}
+
+/* 移动端按钮触摸反馈 */
+@media (hover: none) and (pointer: coarse) {
+  :deep(.el-button) {
+    min-height: 44px; /* iOS推荐的最小触摸目标 */
+  }
+  
+  :deep(.el-button:active) {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+  
+  :deep(.el-button--primary:active) {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  :deep(.el-button--default:active) {
+    background-color: #f3f4f6;
+    border-color: #6366f1;
+  }
+}
+
+/* 按钮涟漪效果 */
+:deep(.el-button::after) {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+:deep(.el-button:active::after) {
+  width: 300px;
+  height: 300px;
 }
 
 /* 输入框聚焦动画 */

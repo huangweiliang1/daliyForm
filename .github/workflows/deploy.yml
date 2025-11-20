@@ -15,13 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # 检出代码
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0  # 获取完整的提交历史
 
       # 设置Node.js环境
-      - name: Set up Node.js
-        uses: actions/setup-node@v4  # 使用最新版本的setup-node action
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'  # 使用Node.js 20版本
           cache: 'npm'  # 缓存npm依赖以加快构建速度
@@ -34,6 +35,20 @@ jobs:
       - name: Build
         run: npm run build  # 执行构建命令
 
+      # 检查构建结果
+      - name: Check build output
+        run: |
+          echo "构建输出目录结构："
+          ls -la dist/
+          echo "检查.nojekyll文件："
+          if [ -f dist/.nojekyll ]; then
+            echo ".nojekyll文件存在"
+          else
+            echo ".nojekyll文件不存在，创建中..."
+            touch dist/.nojekyll
+            echo ".nojekyll文件已创建"
+          fi
+
       # 部署到GitHub Pages
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
@@ -43,7 +58,18 @@ jobs:
           clean: true  # 清理旧文件
           # 使用GITHUB_TOKEN进行身份验证
           token: ${{ secrets.GITHUB_TOKEN }}
-          # 可选：指定自定义域名
-          # target-folder: /  # 部署到根目录
-          # git-config-name: GitHub Actions  # Git提交用户名
-          # git-config-email: github-actions@github.com  # Git提交邮箱
+          # 部署到根目录，确保与vite.config.js中的base配置匹配
+          target-folder: /  # 部署到gh-pages分支的根目录
+          # 设置Git提交信息
+          git-config-name: GitHub Actions
+          git-config-email: github-actions@github.com
+          # 添加提交信息
+          commit-message: "Deploy from GitHub Actions - ${{ github.sha }}"
+
+      # 输出部署信息
+      - name: Deployment Info
+        run: |
+          echo "🚀 部署完成！"
+          echo "📦 仓库: ${{ github.repository }}"
+          echo "🌐 GitHub Pages URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "📋 构建提交: ${{ github.sha }}"
