@@ -3,12 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
+"scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && powershell -Command \"New-Item -ItemType File -Path dist\\.nojekyll -Force\"",
     "preview": "vite preview",
     "debug-deploy": "node debug-deploy.js",
-    "deploy": "vite build && echo '构建完成，请将dist目录下的文件上传到GitHub Pages'"
+    "deploy": "vite build && powershell -Command \"New-Item -ItemType File -Path dist\\.nojekyll -Force\" && echo '构建完成，请将dist目录下的文件上传到GitHub Pages'"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",

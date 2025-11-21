@@ -39,22 +39,22 @@ export default defineConfig({
     // PWA 支持
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: [], // 移除对不存在文件的引用
       manifest: {
         name: '英语学习日记',
         short_name: '英语日记',
         description: '记录英语学习和日常',
-        theme_color: '#ffffff',
+        theme_color: '#4361ee',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/book.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/book.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml'
           }
         ],
         start_url: '/daliyForme/',
