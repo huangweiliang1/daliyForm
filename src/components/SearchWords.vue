@@ -65,7 +65,7 @@
           </div>
           
           <!-- 搜索建议 -->
-          <div v-if="showSearchSuggestions && searchSuggestions.length" class="search-suggestions">
+          <div v-if="showSearchSuggestions && searchSuggestions && searchSuggestions.length" class="search-suggestions">
             <div 
               v-for="(suggestion, index) in searchSuggestions" 
               :key="index"
@@ -340,15 +340,15 @@
                   
                   <p class="word-meaning">{{ word.meaning }}</p>
                   
-                  <div v-if="word.tags && word.tags.length" class="word-tags">
+                  <div v-if="word.tags && Array.isArray(word.tags) && word.tags.length" class="word-tags">
                     <span 
-                      v-for="tag in word.tags.slice(0, 3)" 
-                      :key="tag"
+                      v-for="(tag, index) in (word.tags && Array.isArray(word.tags) ? word.tags.slice(0, 3) : [])" 
+                      :key="index"
                       class="tag"
                     >
                       {{ tag }}
                     </span>
-                    <span v-if="word.tags.length > 3" class="more-tags">+{{ word.tags.length - 3 }}</span>
+                    <span v-if="word.tags && Array.isArray(word.tags) && word.tags.length > 3" class="more-tags">+{{ word.tags.length - 3 }}</span>
                   </div>
                 </div>
 
@@ -816,7 +816,7 @@ const showAdvancedFilters = ref(false)
       }
       
       // 高级筛选 - 标签
-      if (advancedFilters.selectedTags.length > 0) {
+      if (advancedFilters.selectedTags && advancedFilters.selectedTags.length > 0) {
         result = result.filter(word => 
           advancedFilters.selectedTags.some(tag => word.tags.includes(tag))
         )
@@ -1141,6 +1141,9 @@ const handlePronunciationClick = async (word) => {
     }, 1000)
   }
 }
+
+// 为模板调用创建别名函数
+const pronounceWord = handlePronunciationClick
 
 
 
