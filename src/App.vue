@@ -38,8 +38,7 @@
               <div class="nav-icon">
                 <el-icon><View /></el-icon>
               </div>
-              <span>单词记录</span>
-              <div class="nav-count">{{ totalWords }}</div>
+              <span>查看单词</span>
             </div>
             
             <div 
